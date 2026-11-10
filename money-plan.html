@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Salary Splitter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme: light;
+  --bg:#EAF0EE; --surface:#F8FBFA; --ink:#1E2A38; --muted:#5A6878; --line:#CBD6D3;
+  --needs:#2F6F73; --wants:#C98F22; --save:#4F8A32; --danger:#B4412F;
+  --track:#DCE5E2;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --bg:#16202A; --surface:#1E2A36; --ink:#E6EDF0; --muted:#9AAAB8; --line:#33424F;
+    --needs:#4FA3A8; --wants:#E3AE48; --save:#79B556; --danger:#E0745F; --track:#2A3846;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#16202A; --surface:#1E2A36; --ink:#E6EDF0; --muted:#9AAAB8; --line:#33424F;
+  --needs:#4FA3A8; --wants:#E3AE48; --save:#79B556; --danger:#E0745F; --track:#2A3846;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size:16px; line-height:1.5;
+  font-variant-numeric:tabular-nums;
+}
+main{max-width:980px; margin:0 auto; padding:32px 20px 64px}
+h1{font-size:clamp(1.8rem,4vw,2.6rem); font-weight:800; letter-spacing:-0.02em; margin:0 0 4px; line-height:1.1}
+.sub{color:var(--muted); margin:0 0 28px; max-width:60ch}
+
+.top{display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start; margin-bottom:8px}
+.ratio{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:10px}
+.ratio label{display:flex; flex-direction:column; gap:4px; font-weight:600; font-size:.9rem; color:var(--c)}
+.ratio .pctbox{width:100%; border-width:2px; border-color:var(--c); background:var(--surface); padding:6px 10px; color:var(--ink)}
+.ratio .pctbox input{font-size:1.4rem; font-weight:800}
+.ratio-msg{min-height:1.5em; margin:0 0 24px; font-size:.9rem; color:var(--muted)}
+.ratio-msg.warn{color:var(--danger); font-weight:600}
+label.field{display:block; font-weight:600; font-size:.95rem; margin-bottom:6px}
+.salary-wrap{display:flex; align-items:stretch; background:var(--surface); border:2px solid var(--ink); border-radius:14px; overflow:hidden}
+.salary-wrap select{
+  border:0; border-right:2px solid var(--ink); background:transparent; color:var(--ink);
+  font:inherit; font-weight:600; font-size:1.2rem; padding:0 12px; cursor:pointer;
+}
+.salary-wrap input{
+  flex:1; min-width:0; border:0; background:transparent; color:var(--ink);
+  font:inherit; font-size:clamp(1.6rem,4vw,2.2rem); font-weight:800; padding:10px 14px;
+}
+.salary-wrap:focus-within{outline:3px solid var(--needs); outline-offset:2px}
+.salary-wrap input:focus,.salary-wrap select:focus{outline:none}
+.presets{display:flex; gap:6px; flex-wrap:wrap}
+.presets button{
+  font:inherit; font-size:.9rem; font-weight:600; padding:8px 12px; border-radius:999px;
+  border:1.5px solid var(--line); background:var(--surface); color:var(--ink); cursor:pointer;
+}
+.presets button:hover{border-color:var(--ink)}
+.presets button[aria-pressed="true"]{background:var(--ink); color:var(--bg); border-color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--needs); outline-offset:2px}
+
+/* Pillars */
+.stage{
+  display:grid; grid-template-columns:repeat(3,1fr); gap:clamp(10px,3vw,28px);
+  align-items:end; height:300px; padding:0 4px; border-bottom:2px solid var(--ink); margin-bottom:10px;
+}
+.pillar{position:relative; height:100%; display:flex; flex-direction:column; justify-content:flex-end}
+.col{
+  position:relative; border-radius:12px 12px 0 0; background:var(--c);
+  transition:height .35s cubic-bezier(.2,.8,.2,1); min-height:4px; overflow:hidden;
+}
+.col .spent{
+  position:absolute; left:0; right:0; bottom:0; background:rgba(0,0,0,.28);
+  transition:height .35s cubic-bezier(.2,.8,.2,1);
+}
+.col.over{box-shadow:inset 0 0 0 3px var(--danger)}
+.cap{text-align:center; margin-bottom:8px}
+.cap .pct{font-size:clamp(1.6rem,5vw,2.6rem); font-weight:800; line-height:1; letter-spacing:-0.02em; color:var(--c)}
+.cap .amt{font-weight:600; font-size:clamp(.9rem,2.2vw,1.1rem)}
+.names{display:grid; grid-template-columns:repeat(3,1fr); gap:clamp(10px,3vw,28px); text-align:center; font-weight:600; margin-bottom:32px}
+.legend{color:var(--muted); font-size:.85rem; text-align:center; margin:-22px 0 28px}
+.legend i{display:inline-block; width:12px; height:12px; background:var(--ink); opacity:.45; border-radius:3px; vertical-align:-1px; margin-right:4px}
+
+/* Buckets */
+.buckets{display:grid; grid-template-columns:repeat(3,1fr); gap:16px}
+@media (max-width:820px){ .buckets{grid-template-columns:1fr} .top{grid-template-columns:1fr} }
+.bucket{background:var(--surface); border-top:6px solid var(--c); border-radius:4px 4px 14px 14px; padding:16px}
+.bucket h2{font-size:1.25rem; margin:0; font-weight:800}
+.bucket .hint{color:var(--muted); font-size:.85rem; margin:0 0 12px}
+.slider-row{display:flex; align-items:center; gap:10px; margin-bottom:14px}
+input[type=range]{
+  -webkit-appearance:none; appearance:none; flex:1; height:8px; border-radius:99px;
+  background:linear-gradient(to right,var(--c) 0 var(--p,50%),var(--track) var(--p,50%) 100%); cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:24px; height:24px; border-radius:50%; background:var(--surface); border:4px solid var(--c)}
+input[type=range]::-moz-range-thumb{width:16px; height:16px; border-radius:50%; background:var(--surface); border:4px solid var(--c)}
+.pctbox{width:68px; display:flex; align-items:center; border:1.5px solid var(--line); border-radius:8px; padding:2px 6px; background:var(--bg)}
+.pctbox input{width:100%; border:0; background:transparent; color:var(--ink); font:inherit; font-weight:600; text-align:right}
+.pctbox input:focus{outline:none}
+.pctbox:focus-within{border-color:var(--c)}
+
+.stats{display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:14px}
+.stats div{background:var(--bg); border-radius:8px; padding:6px 8px}
+.stats small{display:block; color:var(--muted); font-size:.75rem}
+.stats b{font-size:.95rem}
+.stats .neg b{color:var(--danger)}
+
+ul.items{list-style:none; margin:0 0 10px; padding:0}
+ul.items li{display:flex; align-items:center; gap:6px; padding:6px 0; border-bottom:1px dashed var(--line)}
+ul.items li span.n{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+ul.items li span.v{font-weight:600}
+ul.items li button{border:0; background:transparent; color:var(--muted); font:inherit; font-size:1.1rem; cursor:pointer; padding:0 4px; line-height:1}
+ul.items li button:hover{color:var(--danger)}
+.empty{color:var(--muted); font-size:.85rem; padding:4px 0 10px}
+.add{display:grid; grid-template-columns:1fr 90px auto; gap:6px}
+.add input{min-width:0; font:inherit; font-size:.9rem; padding:7px 8px; border:1.5px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink)}
+.add button{font:inherit; font-weight:600; font-size:.9rem; border:0; border-radius:8px; padding:0 12px; background:var(--c); color:#fff; cursor:pointer}
+
+.footer-row{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-top:28px; color:var(--muted); font-size:.9rem}
+.actions{display:flex; gap:8px; flex-wrap:wrap}
+.footer-row button{font:inherit; border:1.5px solid var(--line); background:transparent; color:var(--ink); border-radius:8px; padding:6px 12px; cursor:pointer}
+.total-left b{color:var(--ink)}
+
+@media (prefers-reduced-motion:reduce){ .col,.col .spent{transition:none} }
+</style>
+</head>
+<body>
+<main>
+  <h1>Split your salary</h1>
+  <p class="sub">Enter what you take home each month and how you want to split it, then add what you plan to spend in each bucket.</p>
+
+  <div class="top">
+    <div>
+      <label class="field" for="salary">Monthly take-home salary</label>
+      <div class="salary-wrap">
+        <select id="currency" aria-label="Currency">
+          <option value="INR">₹</option>
+          <option value="USD">$</option>
+          <option value="EUR">€</option>
+          <option value="GBP">£</option>
+        </select>
+        <input id="salary" type="text" inputmode="decimal" autocomplete="off" value="50000">
+      </div>
+    </div>
+    <div>
+      <span class="field">Your split</span>
+      <div class="ratio">
+        <label style="--c:var(--needs)">Needs<span class="pctbox"><input id="in-needs" type="text" inputmode="numeric" aria-label="Needs percentage">%</span></label>
+        <label style="--c:var(--wants)">Wants<span class="pctbox"><input id="in-wants" type="text" inputmode="numeric" aria-label="Wants percentage">%</span></label>
+        <label style="--c:var(--save)">Savings<span class="pctbox"><input id="in-save" type="text" inputmode="numeric" aria-label="Savings percentage">%</span></label>
+      </div>
+      <div class="presets" role="group" aria-label="Quick ratios">
+        <button data-p="50,30,20">50 / 30 / 20</button>
+        <button data-p="60,20,20">60 / 20 / 20</button>
+        <button data-p="70,20,10">70 / 20 / 10</button>
+      </div>
+    </div>
+  </div>
+  <p class="ratio-msg" id="ratioMsg" role="status"></p>
+
+  <div class="stage" id="stage"></div>
+  <div class="names" id="names"></div>
+  <p class="legend"><i></i>Darker part of each pillar shows what you’ve already planned to spend</p>
+
+  <div class="buckets" id="buckets"></div>
+
+  <div class="footer-row">
+    <span class="total-left" id="totalLeft"></span>
+    <span class="actions">
+      <button id="backup" type="button">Download backup</button>
+      <button id="restore" type="button">Load backup</button>
+      <input id="restoreFile" type="file" accept=".json,application/json" hidden>
+      <button id="reset" type="button">Start over</button>
+    </span>
+  </div>
+</main>
+
+<script>
+const BUCKETS = [
+  {key:"needs", name:"Needs", hint:"Rent, groceries, bills, EMIs, transport", color:"var(--needs)", ph:"Rent"},
+  {key:"wants", name:"Wants", hint:"Eating out, shopping, trips, subscriptions", color:"var(--wants)", ph:"Dining out"},
+  {key:"save",  name:"Savings", hint:"Emergency fund, SIPs, investments", color:"var(--save)", ph:"Emergency fund"}
+];
+const DEFAULT = {salary:50000, currency:"INR", pct:{needs:50,wants:30,save:20}, items:{needs:[],wants:[],save:[]}};
+const KEY = "salary-splitter-v1";
+
+let state;
+try { state = JSON.parse(localStorage.getItem(KEY)) || null; } catch(e){ state = null; }
+if (!state || !state.pct || !state.items) state = structuredClone(DEFAULT);
+
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){} }
+
+function fmt(n){
+  const loc = state.currency === "INR" ? "en-IN" : "en-US";
+  try {
+    return new Intl.NumberFormat(loc,{style:"currency",currency:state.currency,maximumFractionDigits:0}).format(n);
+  } catch(e){ return Math.round(n).toString(); }
+}
+const alloc = k => state.salary * state.pct[k] / 100;
+const spent = k => state.items[k].reduce((s,i)=>s+i.amt,0);
+
+/* Build static structure */
+const stage = document.getElementById("stage");
+const names = document.getElementById("names");
+const bucketsEl = document.getElementById("buckets");
+
+BUCKETS.forEach(b=>{
+  const p = document.createElement("div");
+  p.className="pillar"; p.style.setProperty("--c",b.color);
+  p.innerHTML = `<div class="cap"><div class="pct" id="pct-${b.key}"></div><div class="amt" id="amt-${b.key}"></div></div>
+    <div class="col" id="col-${b.key}"><div class="spent" id="sp-${b.key}"></div></div>`;
+  stage.appendChild(p);
+
+  const n = document.createElement("div"); n.textContent=b.name; n.style.color=b.color; names.appendChild(n);
+
+  const card = document.createElement("section");
+  card.className="bucket"; card.style.setProperty("--c",b.color);
+  card.innerHTML = `
+    <h2>${b.name}</h2>
+    <p class="hint">${b.hint}</p>
+    <div class="stats">
+      <div><small>Budget</small><b id="a-${b.key}"></b></div>
+      <div><small>Planned</small><b id="s-${b.key}"></b></div>
+      <div id="lw-${b.key}"><small>Left</small><b id="l-${b.key}"></b></div>
+    </div>
+    <ul class="items" id="list-${b.key}"></ul>
+    <div class="add" id="f-${b.key}">
+      <input type="text" placeholder="${b.ph}" aria-label="Expense name for ${b.name}">
+      <input type="text" inputmode="decimal" placeholder="Amount" aria-label="Amount for ${b.name}">
+      <button type="button">Add</button>
+    </div>`;
+  bucketsEl.appendChild(card);
+
+  const addBox = document.getElementById("f-"+b.key);
+  const [nameIn, amtIn] = addBox.querySelectorAll("input");
+  const addItem = ()=>{
+    const amt = parseFloat(amtIn.value.replace(/[^0-9.]/g,""));
+    if (!nameIn.value.trim()){ nameIn.focus(); return; }
+    if (isNaN(amt) || amt<=0){ amtIn.focus(); return; }
+    state.items[b.key].push({id:Date.now()+Math.random(), name:nameIn.value.trim(), amt});
+    nameIn.value=""; amtIn.value=""; nameIn.focus();
+    render(); save();
+  };
+  addBox.querySelector("button").addEventListener("click", addItem);
+  nameIn.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); amtIn.focus(); } });
+  amtIn.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); addItem(); } });
+  p.style.cursor="pointer";
+  p.title="Add an expense to "+b.name;
+  p.addEventListener("click", ()=>{ card.scrollIntoView({behavior:"smooth",block:"center"}); nameIn.focus({preventScroll:true}); });
+});
+
+/* Custom split: each box is set directly */
+BUCKETS.forEach(b=>{
+  const inp = document.getElementById("in-"+b.key);
+  inp.addEventListener("input",()=>{
+    const v = parseFloat(inp.value.replace(/[^0-9.]/g,""));
+    state.pct[b.key] = isNaN(v) ? 0 : Math.max(0, Math.min(100, v));
+    render(); save();
+  });
+  inp.addEventListener("blur",()=>{ inp.value = state.pct[b.key]; });
+});
+function showRatio(){ BUCKETS.forEach(b=>{ document.getElementById("in-"+b.key).value = state.pct[b.key]; }); }
+
+function render(){
+  const maxPct = Math.max(...BUCKETS.map(b=>state.pct[b.key]), 1);
+  let totalSpent = 0;
+  BUCKETS.forEach(b=>{
+    const k=b.key, p=state.pct[k], a=alloc(k), s=spent(k), left=a-s;
+    totalSpent += s;
+    document.getElementById("pct-"+k).textContent = p+"%";
+    document.getElementById("amt-"+k).textContent = fmt(a);
+    const col = document.getElementById("col-"+k);
+    col.style.height = (p/Math.max(maxPct,60)*78) + "%";
+    col.classList.toggle("over", s>a);
+    document.getElementById("sp-"+k).style.height = a>0 ? Math.min(100, s/a*100)+"%" : (s>0?"100%":"0%");
+
+
+    document.getElementById("a-"+k).textContent = fmt(a);
+    document.getElementById("s-"+k).textContent = fmt(s);
+    document.getElementById("l-"+k).textContent = fmt(left);
+    document.getElementById("lw-"+k).classList.toggle("neg", left<0);
+    document.getElementById("lw-"+k).querySelector("small").textContent = left<0 ? "Over by" : "Left";
+    if (left<0) document.getElementById("l-"+k).textContent = fmt(-left);
+
+    const ul = document.getElementById("list-"+k);
+    ul.innerHTML = "";
+    if (!state.items[k].length){
+      const li=document.createElement("li"); li.className="empty"; li.style.border="0";
+      li.textContent="Nothing added yet. Add your first "+b.name.toLowerCase()+" item below.";
+      ul.appendChild(li);
+    }
+    state.items[k].forEach(it=>{
+      const li=document.createElement("li");
+      const nm=document.createElement("span"); nm.className="n"; nm.textContent=it.name;
+      const v=document.createElement("span"); v.className="v"; v.textContent=fmt(it.amt);
+      const x=document.createElement("button"); x.type="button"; x.textContent="×";
+      x.setAttribute("aria-label","Remove "+it.name);
+      x.onclick=()=>{ state.items[k]=state.items[k].filter(i=>i.id!==it.id); render(); save(); };
+      li.append(nm,v,x); ul.appendChild(li);
+    });
+  });
+
+  const totalPct = Math.round((state.pct.needs + state.pct.wants + state.pct.save)*100)/100;
+  const msg = document.getElementById("ratioMsg");
+  msg.classList.toggle("warn", totalPct!==100);
+  msg.textContent = totalPct===100
+    ? "Your split adds up to 100%."
+    : totalPct<100
+      ? `Your split adds up to ${totalPct}%. ${fmt(state.salary*(100-totalPct)/100)} of your salary isn’t in any bucket yet.`
+      : `Your split adds up to ${totalPct}%, which is ${Math.round((totalPct-100)*100)/100}% more than your salary.`;
+
+  const unplanned = state.salary - totalSpent;
+  document.getElementById("totalLeft").innerHTML = unplanned>=0
+    ? `Planned so far: <b>${fmt(totalSpent)}</b> of ${fmt(state.salary)}. Still unassigned: <b>${fmt(unplanned)}</b>`
+    : `Planned so far: <b>${fmt(totalSpent)}</b>, which is <b style="color:var(--danger)">${fmt(-unplanned)}</b> more than your salary`;
+
+  document.querySelectorAll(".presets button").forEach(btn=>{
+    const [a,b,c]=btn.dataset.p.split(",").map(Number);
+    btn.setAttribute("aria-pressed", a===state.pct.needs && b===state.pct.wants && c===state.pct.save);
+  });
+}
+
+/* Salary + currency */
+const salaryIn = document.getElementById("salary");
+const curIn = document.getElementById("currency");
+function showSalary(){ salaryIn.value = state.salary ? state.salary.toLocaleString(state.currency==="INR"?"en-IN":"en-US") : ""; }
+salaryIn.addEventListener("input",()=>{
+  const v = parseFloat(salaryIn.value.replace(/[^0-9.]/g,""));
+  state.salary = isNaN(v)?0:v; render(); save();
+});
+salaryIn.addEventListener("blur",showSalary);
+curIn.addEventListener("change",()=>{ state.currency=curIn.value; showSalary(); render(); save(); });
+
+document.querySelectorAll(".presets button").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    const [a,b,c]=btn.dataset.p.split(",").map(Number);
+    state.pct={needs:a,wants:b,save:c}; showRatio(); render(); save();
+  });
+});
+document.getElementById("backup").addEventListener("click",()=>{
+  const blob = new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "salary-splitter-backup-" + new Date().toISOString().slice(0,10) + ".json";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+});
+const restoreFile = document.getElementById("restoreFile");
+document.getElementById("restore").addEventListener("click",()=>restoreFile.click());
+restoreFile.addEventListener("change",()=>{
+  const file = restoreFile.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try {
+      const d = JSON.parse(reader.result);
+      if (!d.pct || !d.items || typeof d.salary!=="number") throw new Error("bad file");
+      state = {...structuredClone(DEFAULT), ...d};
+      curIn.value = state.currency; showSalary(); showRatio(); render(); save();
+    } catch(e){ alert("That file doesn’t look like a Salary Splitter backup."); }
+    restoreFile.value = "";
+  };
+  reader.readAsText(file);
+});
+
+document.getElementById("reset").addEventListener("click",()=>{
+  if (!confirm("Clear your salary, split and all expenses?")) return;
+  state = structuredClone(DEFAULT); curIn.value=state.currency; showSalary(); showRatio(); render(); save();
+});
+
+curIn.value = state.currency;
+showSalary();
+showRatio();
+render();
+</script>
+</body>
+</html>
